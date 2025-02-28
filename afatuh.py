@@ -5,6 +5,7 @@ import cv2
 from skimage.feature import hog
 from skimage.color import rgb2gray
 from skimage.transform import resize
+import matplotlib.pyplot as plt
 from PIL import Image
 import streamlit_drawable_canvas as stc
 
@@ -52,7 +53,13 @@ def extract_hog_features(image):
     target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
-    return np.array(features).reshape(1, -1), hog_image
+    # Perbaiki visualisasi HOG dengan matplotlib
+    fig, ax = plt.subplots()
+    ax.imshow(hog_image, cmap='gray')
+    ax.set_title("HOG Visualization")
+    ax.axis("off")
+    
+    return np.array(features).reshape(1, -1), fig
 
 st.title("📝 Pengenalan Tulisan Hangeul")
 st.write("Gambar huruf di kanvas untuk prediksi.")
@@ -72,7 +79,7 @@ if st.button("Prediksi"):
     if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
         processed_image = preprocess_image(image)
-        hog_features, hog_image = extract_hog_features(np.array(image))
+        hog_features, hog_figure = extract_hog_features(np.array(image))
         model = load_model()
         
         if model is not None:
@@ -88,6 +95,6 @@ if st.button("Prediksi"):
                 
                 # Tampilkan hasil preprocessing
                 st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
-                st.image(hog_image, caption="📊 HOG Visualization", use_column_width=True, clamp=True, channels="GRAY")
+                st.pyplot(hog_figure)
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
