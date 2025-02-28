@@ -49,6 +49,8 @@ def extract_hog_features(image):
     
     # Normalisasi fitur
     features = features / (np.linalg.norm(features) + 1e-6)
+    features = np.clip(features, 0, 1)
+    
     target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
@@ -69,7 +71,7 @@ canvas_result = stc.st_canvas(
 )
 
 if st.button("Prediksi"):
-    if canvas_result.image_data is not None:
+    if canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, :3] != 255):
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
         processed_image = preprocess_image(image)
         hog_features = extract_hog_features(np.array(image))
@@ -90,3 +92,5 @@ if st.button("Prediksi"):
                 st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
+    else:
+        st.warning("Harap gambar huruf terlebih dahulu.")
