@@ -7,6 +7,7 @@ from skimage.color import rgb2gray
 from skimage.transform import resize
 from PIL import Image
 import streamlit_drawable_canvas as stc
+import matplotlib.pyplot as plt
 
 # Daftar huruf Korea sesuai model
 hangeul_chars = ["Yu", "ae", "b", "bb", "ch", "d", "e", "eo", "eu", "g", "gg", "h", "i", "j", "k",
@@ -49,8 +50,6 @@ def extract_hog_features(image):
     
     # Normalisasi fitur
     features = features / (np.linalg.norm(features) + 1e-6)
-    features = np.clip(features, 0, 1)
-    
     target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
@@ -67,11 +66,10 @@ canvas_result = stc.st_canvas(
     width=256,
     height=256,
     drawing_mode="freedraw",
-    key="canvas"
-)
+    key="canvas"")
 
 if st.button("Prediksi"):
-    if canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, :3] != 255):
+    if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
         processed_image = preprocess_image(image)
         hog_features, hog_image = extract_hog_features(np.array(image))
@@ -88,10 +86,14 @@ if st.button("Prediksi"):
                 result = hangeul_chars[np.argmax(pred)]
                 st.write(f"✏️ Prediksi Huruf: **{result}**")
                 
-                # Tampilkan hasil preprocessing dan HOG
+                # Tampilkan hasil preprocessing
                 st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
-                st.image(hog_image, caption="📊 HOG Features", use_column_width=True, clamp=True)
+                
+                # Tampilkan visualisasi HOG
+                fig, ax = plt.subplots()
+                ax.imshow(hog_image, cmap="gray")
+                ax.set_title("Visualisasi HOG")
+                ax.axis("off")
+                st.pyplot(fig)
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
-    else:
-        st.warning("Harap gambar huruf terlebih dahulu.")
