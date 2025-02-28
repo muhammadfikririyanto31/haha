@@ -78,9 +78,11 @@ if st.button("🔍 Prediksi Huruf"):
                     else:
                         pred = model.predict(processed_image)
                     
+                    confidence = np.max(pred)
                     result = hangeul_chars[np.argmax(pred)]
-                    if result not in hangeul_chars:
-                        st.error("❌ Bukan alfabet Hangeul! Silakan coba lagi.")
+                    
+                    if confidence < 0.5:
+                        st.error("❌ Tidak yakin ini huruf Hangeul. Silakan coba lagi.")
                     else:
                         st.success(f"✏️ Prediksi Huruf: **{result}**")
                     
