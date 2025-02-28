@@ -19,7 +19,9 @@ def load_model():
     return tf.keras.models.load_model("best_cnn_hog_model9010bismillahacc1.h5", compile=False)
 
 model = load_model()
-expected_shape = model.input_shape[1:]  # Ambil ukuran input model
+expected_shape = model.input_shape[1:]
+if expected_shape is None or len(expected_shape) < 3:
+    raise ValueError("Error: expected_shape model tidak valid.")
 
 def preprocess_image(image):
     """Preprocessing gambar sebelum masuk ke model."""
@@ -45,15 +47,11 @@ def preprocess_image(image):
         st.error("Error: Gambar tidak valid setelah preprocessing.")
         return None, None
 
-    if expected_shape is None or len(expected_shape) < 2:
-        st.error("Error: expected_shape model tidak valid.")
-        return None, None
-
     # Resize sesuai model
     final_image = cv2.resize(thinning, (expected_shape[0], expected_shape[1]), interpolation=cv2.INTER_AREA) / 255.0
 
     # Pastikan format grayscale sesuai
-    if len(expected_shape) == 3 and expected_shape[-1] == 1:
+    if expected_shape[-1] == 1:
         final_image = np.expand_dims(final_image, axis=-1)
 
     return np.expand_dims(final_image, axis=0), thinning
