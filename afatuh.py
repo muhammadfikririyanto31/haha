@@ -37,7 +37,7 @@ def preprocess_image(image):
     final_image = cv2.resize(binary_image, expected_shape[:2], interpolation=cv2.INTER_AREA) / 255.0
     
     # Pastikan channel sesuai dengan model
-    if expected_shape[-1] == 3:
+    if len(expected_shape) == 3 and expected_shape[-1] == 3:
         final_image = np.stack((final_image,) * 3, axis=-1)
     
     return np.expand_dims(final_image.astype(np.float32), axis=0), binary_image
@@ -89,12 +89,30 @@ def main():
             processed_image, binary_image = preprocess_image(image)
             
             st.write("Processed image shape:", processed_image.shape)
+            
             if num_inputs == 2:
                 hog_features, hog_visual = extract_hog_features(binary_image)
                 st.write("HOG features shape:", hog_features.shape)
-                prediction = model.predict([processed_image, hog_features])
+                
+                # Pastikan input model memiliki bentuk yang sesuai
+                if processed_image.shape[1:] != expected_shape or hog_features.shape[1:] != (144,):
+                    st.error("Dimensi input tidak sesuai dengan model.")
+                    return
+                
+                try:
+                    prediction = model.predict([processed_image, hog_features])
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan saat prediksi: {e}")
+                    return
             else:
-                prediction = model.predict(processed_image)
+                if processed_image.shape[1:] != expected_shape:
+                    st.error("Dimensi input tidak sesuai dengan model.")
+                    return
+                try:
+                    prediction = model.predict(processed_image)
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan saat prediksi: {e}")
+                    return
             
             # Ambil 3 prediksi teratas
             top_3_indices = np.argsort(prediction[0])[-3:][::-1]
