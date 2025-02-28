@@ -16,7 +16,7 @@ hangeul_chars = ["Yu", "ae", "b", "bb", "ch", "d", "e", "eo", "eu", "g", "gg", "
 # Load model dengan caching
 @st.cache_resource
 def load_model():
-    return tf.keras.models.load_model("best_cnn_hog_model9010new.h5", compile=False)
+    return tf.keras.models.load_model("best_cnn_hog_model9010bismillahacc1.h5", compile=False)
 
 model = load_model()
 num_inputs = len(model.input_shape) if isinstance(model.input_shape, list) else 1
