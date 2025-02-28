@@ -51,7 +51,7 @@ def is_valid_drawing(image):
     return (non_zero_pixels / total_pixels) > 0.05
 
 # UI Header
-st.title("📝 Pengenalan Huruf Hangeul")
+st.title("📝AYOO BELAJAR HURUF HANGEUL!!!by:Muhammad Fikri Riyanto")
 st.markdown("<h4 style='text-align: center;'>Gambar huruf di kanvas untuk prediksi.</h4>", unsafe_allow_html=True)
 
 # Kanvas menggambar
