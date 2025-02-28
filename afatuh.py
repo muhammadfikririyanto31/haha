@@ -5,7 +5,6 @@ import cv2
 from skimage.feature import hog
 from skimage.color import rgb2gray
 from skimage.transform import resize
-from tensorflow.keras.preprocessing.image import img_to_array
 from PIL import Image
 import streamlit_drawable_canvas as stc
 
@@ -61,12 +60,16 @@ if st.button("Prediksi"):
         
         if model is not None:
             try:
-                if isinstance(model.input_shape, list) and len(model.input_shape) == 2:
+                input_shapes = model.input_shape if isinstance(model.input_shape, list) else [model.input_shape]
+                if len(input_shapes) == 2:
                     pred = model.predict([processed_image, hog_features])
                 else:
                     pred = model.predict(processed_image)
                 
                 result = hangeul_chars[np.argmax(pred)]
-                st.write(f"Prediction: **{result}**")
+                st.write(f"✏️ Prediksi Huruf: **{result}**")
+                
+                # Tampilkan hasil preprocessing
+                st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="RGB")
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
