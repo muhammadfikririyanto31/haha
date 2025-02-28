@@ -4,7 +4,8 @@ import tensorflow as tf
 import cv2
 from skimage.feature import hog
 from skimage.color import rgb2gray
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from skimage.transform import resize
+from tensorflow.keras.preprocessing.image import img_to_array
 from PIL import Image
 import streamlit_drawable_canvas as stc
 
@@ -23,14 +24,18 @@ def load_model():
 
 def preprocess_image(image):
     image = image.convert("L")  # Convert to grayscale
-    image = image.resize((100, 100))
+    image = image.resize((28, 28))  # Resize to match model input size
     img_tensor = np.array(image) / 255.0  # Normalize
     img_tensor = np.expand_dims(img_tensor, axis=(0, -1))
+    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Ensure 3 channels if needed
     return img_tensor
 
 def extract_hog_features(image):
     gray = rgb2gray(image)
-    features, _ = hog(gray, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    gray_resized = resize(gray, (64, 64), anti_aliasing=True)
+    features, _ = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    target_hog_size = 144
+    features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     return np.array(features).reshape(1, -1)
 
 st.title("📝 Pengenalan Tulisan Hangeul")
@@ -56,7 +61,11 @@ if st.button("Prediksi"):
         
         if model is not None:
             try:
-                pred = model.predict([processed_image, hog_features])
+                if isinstance(model.input_shape, list) and len(model.input_shape) == 2:
+                    pred = model.predict([processed_image, hog_features])
+                else:
+                    pred = model.predict(processed_image)
+                
                 result = hangeul_chars[np.argmax(pred)]
                 st.write(f"Prediction: **{result}**")
             except Exception as e:
