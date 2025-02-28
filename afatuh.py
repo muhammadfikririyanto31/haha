@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import tensorflow as tf
 import cv2
-from skimage.morphology import skeletonize
 from skimage.feature import hog
 from skimage import color, exposure
 from skimage.transform import resize
@@ -31,41 +30,30 @@ def preprocess_image(image):
     if np.mean(image) > 127:
         image = cv2.bitwise_not(image)
     
-    # Normalisasi kontras dengan CLAHE
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-    image = clahe.apply(image)
-    
-    # Adaptive thresholding untuk menangani variasi pencahayaan
-    binary_image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    
-    # Skeletonization untuk mempertahankan struktur utama
-    thinning = skeletonize(binary_image // 255).astype(np.uint8) * 255
+    # Thresholding sederhana
+    _, binary_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY_INV)
     
     # Resize sesuai model
-    final_image = cv2.resize(thinning, expected_shape[:2], interpolation=cv2.INTER_AREA) / 255.0
+    final_image = cv2.resize(binary_image, expected_shape[:2], interpolation=cv2.INTER_AREA) / 255.0
     
     # Pastikan channel sesuai dengan model
     if expected_shape[-1] == 3:
         final_image = np.stack((final_image,) * 3, axis=-1)
     
-    return np.expand_dims(final_image, axis=0), thinning
+    return np.expand_dims(final_image, axis=0), binary_image
 
 def extract_hog_features(image):
     """Ekstraksi fitur HOG yang sesuai dengan model."""
     gray_image = color.rgb2gray(image) if image.ndim == 3 else image
     gray_image_resized = resize(gray_image, (64, 64), anti_aliasing=True, preserve_range=True)
     
-    # Ekstraksi HOG dengan parameter yang lebih stabil
+    # Ekstraksi HOG
     hog_features, hog_image = hog(gray_image_resized, orientations=9, pixels_per_cell=(8, 8), 
                                   cells_per_block=(2, 2), block_norm='L2-Hys', visualize=True)
     
     # Normalisasi fitur
     hog_features /= (np.linalg.norm(hog_features) + 1e-6)
     hog_image = exposure.rescale_intensity(hog_image, in_range=(0, 10))
-    
-    # Pastikan ukuran fitur sesuai
-    target_hog_size = 144
-    hog_features = hog_features[:target_hog_size] if len(hog_features) >= target_hog_size else np.pad(hog_features, (0, target_hog_size - len(hog_features)))
     
     return np.expand_dims(hog_features, axis=0), hog_image
 
@@ -82,7 +70,7 @@ def generate_hangeul_image(text):
 
 def main():
     st.title("📝 Pengenalan Tulisan Hangeul ")
-    st.write("Ayo Belajar Hangeul tuliskan dicanvas!!by: Muhammad Fikri Riyanto")
+    st.write("Ayo Belajar Hangeul tuliskan dicanvas!! by: Muhammad Fikri Riyanto")
     
     canvas_result = stc.st_canvas(
         fill_color="rgba(255, 255, 255, 0)",
@@ -98,15 +86,15 @@ def main():
     if st.button("Prediksi"):
         if canvas_result.image_data is not None:
             image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
-            processed_image, thinning_image = preprocess_image(image)
+            processed_image, binary_image = preprocess_image(image)
             
             if num_inputs == 2:
-                hog_features, hog_visual = extract_hog_features(thinning_image)
+                hog_features, hog_visual = extract_hog_features(binary_image)
                 prediction = model.predict([processed_image, hog_features])
             else:
                 prediction = model.predict(processed_image)
             
-            # Ambil 3 prediksi teratas untuk mengurangi bias
+            # Ambil 3 prediksi teratas
             top_3_indices = np.argsort(prediction[0])[-3:][::-1]
             top_3_values = prediction[0][top_3_indices] * 100
             
@@ -121,8 +109,9 @@ def main():
             st.image(hangeul_image, caption=f"🖌 Huruf Hangeul: {predicted_hangeul}", use_container_width=False)
             
             st.image(processed_image[0], caption="📊 Gambar Input ke Model", use_container_width=True, clamp=True, channels="GRAY")
-            st.image(thinning_image, caption="📊 Gambar Setelah Thinning", use_container_width=True, clamp=True, channels="GRAY")
-            st.image(hog_visual, caption="📊 Ekstraksi HOG", use_container_width=True, clamp=True, channels="GRAY")
+            st.image(binary_image, caption="📊 Gambar Setelah Thresholding", use_container_width=True, clamp=True, channels="GRAY")
+            if num_inputs == 2:
+                st.image(hog_visual, caption="📊 Ekstraksi HOG", use_container_width=True, clamp=True, channels="GRAY")
 
 if __name__ == "__main__":
     main()
