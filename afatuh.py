@@ -81,7 +81,7 @@ if st.button("🔍 Prediksi Huruf"):
                     confidence = np.max(pred)
                     result = hangeul_chars[np.argmax(pred)]
                     
-                    if confidence < 0.5:
+                    if confidence < 0.7:
                         st.error("❌ Tidak yakin ini huruf Hangeul. Silakan coba lagi.")
                     else:
                         st.success(f"✏️ Prediksi Huruf: **{result}**")
