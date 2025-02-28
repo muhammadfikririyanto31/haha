@@ -52,7 +52,7 @@ def is_valid_drawing(image):
 
 # UI Header
 st.title("📝AYOO BELAJAR HURUF HANGEUL!!!by:Muhammad Fikri Riyanto")
-st.markdown("<h4 style='text-align: center;'>Gambar huruf di kanvas untuk prediksi.</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center;'>Ayo Coret Di Kanvas :)</h4>", unsafe_allow_html=True)
 
 # Kanvas menggambar
 canvas_result = stc.st_canvas(
