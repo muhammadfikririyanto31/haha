@@ -7,6 +7,7 @@ from skimage.color import rgb2gray
 from skimage.transform import resize
 from PIL import Image
 import streamlit_drawable_canvas as stc
+import matplotlib.pyplot as plt
 
 # Daftar huruf Korea sesuai model
 hangeul_chars = ["Yu", "ae", "b", "bb", "ch", "d", "e", "eo", "eu", "g", "gg", "h", "i", "j", "k",
@@ -20,8 +21,6 @@ def load_model():
     except Exception as e:
         st.error(f"Error loading model: {e}")
         return None
-
-# Preprocess image for CNN
 
 def preprocess_image(image):
     image = image.convert("L")  # Convert to grayscale
@@ -44,18 +43,17 @@ def preprocess_image(image):
     
     return img_tensor
 
-# Extract HOG features
 def extract_hog_features(image):
     gray = rgb2gray(image) if image.ndim == 3 else image
     gray_resized = resize(gray, (64, 64), anti_aliasing=True)
-    features, _ = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    features, hog_image = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
     
     # Normalisasi fitur
     features = features / (np.linalg.norm(features) + 1e-6)
-    target_hog_size = 144  # Pastikan sesuai dengan model
+    target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
-    return np.array(features).reshape(1, -1)
+    return np.array(features).reshape(1, -1), hog_image
 
 st.title("📝 Pengenalan Tulisan Hangeul")
 st.write("Gambar huruf di kanvas untuk prediksi.")
@@ -68,13 +66,14 @@ canvas_result = stc.st_canvas(
     width=256,
     height=256,
     drawing_mode="freedraw",
-    key="canvas"")
+    key="canvas"
+)
 
 if st.button("Prediksi"):
     if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
         processed_image = preprocess_image(image)
-        hog_features = extract_hog_features(np.array(image))
+        hog_features, hog_image = extract_hog_features(np.array(image))
         model = load_model()
         
         if model is not None:
@@ -90,5 +89,12 @@ if st.button("Prediksi"):
                 
                 # Tampilkan hasil preprocessing
                 st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
+                
+                # Tampilkan visualisasi HOG
+                fig, ax = plt.subplots()
+                ax.imshow(hog_image, cmap='gray')
+                ax.set_title("HOG Features")
+                ax.axis("off")
+                st.pyplot(fig)
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
