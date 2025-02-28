@@ -65,7 +65,8 @@ canvas_result = stc.st_canvas(
     width=256,
     height=256,
     drawing_mode="freedraw",
-    key="canvas"")
+    key="canvas"
+)
 
 if st.button("Prediksi"):
     if canvas_result.image_data is not None:
