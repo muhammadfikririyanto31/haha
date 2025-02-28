@@ -23,18 +23,35 @@ def load_model():
 
 def preprocess_image(image):
     image = image.convert("L")  # Convert to grayscale
-    image = image.resize((28, 28))  # Resize to match model input size
-    img_tensor = np.array(image) / 255.0  # Normalize
+    image = np.array(image)
+    
+    # Pastikan background putih dan tulisan hitam
+    if np.mean(image) > 127:
+        image = cv2.bitwise_not(image)
+    
+    # Binarisasi adaptif untuk meningkatkan kejelasan tulisan
+    _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    # Resize ke ukuran yang sesuai untuk model
+    image = cv2.resize(image, (28, 28), interpolation=cv2.INTER_AREA)
+    
+    # Normalisasi
+    img_tensor = image.astype(np.float32) / 255.0
     img_tensor = np.expand_dims(img_tensor, axis=(0, -1))
-    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Ensure 3 channels if needed
+    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Pastikan 3 channel jika diperlukan
+    
     return img_tensor
 
 def extract_hog_features(image):
-    gray = rgb2gray(image)
+    gray = rgb2gray(image) if image.ndim == 3 else image
     gray_resized = resize(gray, (64, 64), anti_aliasing=True)
     features, _ = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    
+    # Normalisasi fitur
+    features = features / (np.linalg.norm(features) + 1e-6)
     target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
+    
     return np.array(features).reshape(1, -1)
 
 st.title("📝 Pengenalan Tulisan Hangeul")
@@ -48,8 +65,7 @@ canvas_result = stc.st_canvas(
     width=256,
     height=256,
     drawing_mode="freedraw",
-    key="canvas"
-)
+    key="canvas"")
 
 if st.button("Prediksi"):
     if canvas_result.image_data is not None:
@@ -70,6 +86,6 @@ if st.button("Prediksi"):
                 st.write(f"✏️ Prediksi Huruf: **{result}**")
                 
                 # Tampilkan hasil preprocessing
-                st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="RGB")
+                st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
