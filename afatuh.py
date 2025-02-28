@@ -1,6 +1,9 @@
 import streamlit as st
 import numpy as np
 import tensorflow as tf
+import cv2
+from skimage.feature import hog
+from skimage.color import rgb2gray
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 
 # Daftar huruf Korea sesuai model
@@ -16,7 +19,7 @@ def load_model():
         st.error(f"Error loading model: {e}")
         return None
 
-# Fungsi untuk memproses gambar
+# Fungsi untuk memproses gambar (CNN input)
 def preprocess_image(image_path):
     try:
         img = load_img(image_path, target_size=(100, 100), color_mode="grayscale")
@@ -26,6 +29,17 @@ def preprocess_image(image_path):
         return img_tensor
     except Exception as e:
         st.error(f"Error processing image: {e}")
+        return None
+
+# Fungsi untuk mengekstrak fitur HOG (SVM input)
+def extract_hog_features(image_path):
+    try:
+        image = cv2.imread(image_path)
+        gray = rgb2gray(image)
+        features, _ = hog(gray, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+        return np.array(features).reshape(1, -1)
+    except Exception as e:
+        st.error(f"Error extracting HOG features: {e}")
         return None
 
 # Streamlit UI
@@ -43,11 +57,12 @@ if uploaded_file is not None:
     st.write("Classifying...")
     
     img_tensor = preprocess_image(image_path)
+    hog_features = extract_hog_features(image_path)
     model = load_model()
     
-    if img_tensor is not None and model is not None:
+    if img_tensor is not None and hog_features is not None and model is not None:
         try:
-            pred = model.predict(img_tensor)
+            pred = model.predict([img_tensor, hog_features])  # Gunakan kedua input
             result = hangeul_chars[np.argmax(pred)]
             st.write(f"Prediction: **{result}**")
         except Exception as e:
