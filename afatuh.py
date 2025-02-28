@@ -29,16 +29,16 @@ def preprocess_image(image):
     if np.mean(image) > 127:
         image = cv2.bitwise_not(image)
     
-    # Binarisasi adaptif untuk meningkatkan kejelasan tulisan
+    # Binarisasi adaptif
     _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
-    # Resize ke ukuran yang sesuai untuk model
+    # Resize ke ukuran model (28x28)
     image = cv2.resize(image, (28, 28), interpolation=cv2.INTER_AREA)
     
-    # Normalisasi
+    # Normalisasi dan ubah dimensi
     img_tensor = image.astype(np.float32) / 255.0
     img_tensor = np.expand_dims(img_tensor, axis=(0, -1))
-    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Pastikan 3 channel jika diperlukan
+    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Pastikan 3 channel jika model memerlukannya
     
     return img_tensor
 
