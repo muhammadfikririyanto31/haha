@@ -30,10 +30,10 @@ def preprocess_image(image):
     if np.mean(image) > 127:
         image = cv2.bitwise_not(image)
     
-    # Binarisasi adaptif untuk meningkatkan kejelasan tulisan
+    # Binarisasi adaptif
     _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
-    # Resize ke ukuran yang sesuai untuk model
+    # Resize ke ukuran model
     image = cv2.resize(image, (28, 28), interpolation=cv2.INTER_AREA)
     
     # Normalisasi
@@ -54,6 +54,12 @@ def extract_hog_features(image):
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
     return np.array(features).reshape(1, -1), hog_image
+
+def visualize_hog(hog_image):
+    fig, ax = plt.subplots()
+    ax.imshow(hog_image, cmap="gray")
+    ax.axis("off")
+    return fig
 
 st.title("📝 Pengenalan Tulisan Hangeul")
 st.write("Gambar huruf di kanvas untuk prediksi.")
@@ -89,11 +95,7 @@ if st.button("Prediksi"):
                 # Tampilkan hasil preprocessing
                 st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
                 
-                # Tampilkan visualisasi HOG
-                fig, ax = plt.subplots()
-                ax.imshow(hog_image, cmap="gray")
-                ax.set_title("Visualisasi HOG")
-                ax.axis("off")
-                st.pyplot(fig)
+                # Tampilkan hasil HOG
+                st.pyplot(visualize_hog(hog_image))
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
