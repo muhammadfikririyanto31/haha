@@ -31,7 +31,7 @@ def preprocess_image(image):
         image = cv2.bitwise_not(image)
     
     # Binarisasi adaptif untuk meningkatkan kejelasan tulisan
-    _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     
     # Resize ke ukuran yang sesuai untuk model
     image = cv2.resize(image, (28, 28), interpolation=cv2.INTER_AREA)
@@ -45,15 +45,15 @@ def preprocess_image(image):
 
 def extract_hog_features(image):
     gray = rgb2gray(image) if image.ndim == 3 else image
-    gray_resized = resize(gray, (64, 64), anti_aliasing=True)
-    features, hog_image = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    gray_resized = resize(gray, (64, 64), anti_aliasing=True, preserve_range=True)
+    features, hog_image = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True, feature_vector=True)
     
     # Normalisasi fitur
     features = features / (np.linalg.norm(features) + 1e-6)
     target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
-    return np.array(features).reshape(1, -1), exposure.rescale_intensity(hog_image, in_range=(0, 10))
+    return np.array(features).reshape(1, -1), exposure.rescale_intensity(hog_image, in_range=(0, 1))
 
 st.title("📝 Pengenalan Tulisan Hangeul")
 st.write("Gambar huruf di kanvas untuk prediksi.")
@@ -73,7 +73,7 @@ if st.button("Prediksi"):
     if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
         processed_image, binarized_image = preprocess_image(image)
-        hog_features, hog_visual = extract_hog_features(np.array(image))
+        hog_features, hog_visual = extract_hog_features(np.array(binarized_image))
         model = load_model()
         
         if model is not None:
