@@ -5,7 +5,6 @@ import cv2
 from skimage.feature import hog
 from skimage.color import rgb2gray
 from skimage.transform import resize
-import matplotlib.pyplot as plt
 from PIL import Image
 import streamlit_drawable_canvas as stc
 
@@ -22,6 +21,8 @@ def load_model():
         st.error(f"Error loading model: {e}")
         return None
 
+# Preprocess image for CNN
+
 def preprocess_image(image):
     image = image.convert("L")  # Convert to grayscale
     image = np.array(image)
@@ -30,36 +31,31 @@ def preprocess_image(image):
     if np.mean(image) > 127:
         image = cv2.bitwise_not(image)
     
-    # Binarisasi adaptif
+    # Binarisasi adaptif untuk meningkatkan kejelasan tulisan
     _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
-    # Resize ke ukuran model (28x28)
+    # Resize ke ukuran yang sesuai untuk model
     image = cv2.resize(image, (28, 28), interpolation=cv2.INTER_AREA)
     
-    # Normalisasi dan ubah dimensi
+    # Normalisasi
     img_tensor = image.astype(np.float32) / 255.0
     img_tensor = np.expand_dims(img_tensor, axis=(0, -1))
-    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Pastikan 3 channel jika model memerlukannya
+    img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Pastikan 3 channel jika diperlukan
     
     return img_tensor
 
+# Extract HOG features
 def extract_hog_features(image):
     gray = rgb2gray(image) if image.ndim == 3 else image
     gray_resized = resize(gray, (64, 64), anti_aliasing=True)
-    features, hog_image = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    features, _ = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
     
     # Normalisasi fitur
     features = features / (np.linalg.norm(features) + 1e-6)
-    target_hog_size = 144
+    target_hog_size = 144  # Pastikan sesuai dengan model
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
-    # Perbaiki visualisasi HOG dengan matplotlib
-    fig, ax = plt.subplots()
-    ax.imshow(hog_image, cmap='gray')
-    ax.set_title("HOG Visualization")
-    ax.axis("off")
-    
-    return np.array(features).reshape(1, -1), fig
+    return np.array(features).reshape(1, -1)
 
 st.title("📝 Pengenalan Tulisan Hangeul")
 st.write("Gambar huruf di kanvas untuk prediksi.")
@@ -72,14 +68,13 @@ canvas_result = stc.st_canvas(
     width=256,
     height=256,
     drawing_mode="freedraw",
-    key="canvas"
-)
+    key="canvas"")
 
 if st.button("Prediksi"):
     if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
         processed_image = preprocess_image(image)
-        hog_features, hog_figure = extract_hog_features(np.array(image))
+        hog_features = extract_hog_features(np.array(image))
         model = load_model()
         
         if model is not None:
@@ -95,6 +90,5 @@ if st.button("Prediksi"):
                 
                 # Tampilkan hasil preprocessing
                 st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
-                st.pyplot(hog_figure)
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
