@@ -25,40 +25,50 @@ def preprocess_image(image):
     """Preprocessing gambar sebelum masuk ke model."""
     image = image.convert("L")  # Konversi ke grayscale
     image = np.array(image)
-    
+
     # Pastikan background putih dan tulisan hitam
     if np.mean(image) > 127:
         image = cv2.bitwise_not(image)
-    
+
     # Normalisasi kontras
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
     image = clahe.apply(image)
-    
+
     # Adaptive thresholding
     binary_image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    
+
     # Skeletonization untuk mempertahankan struktur utama
     thinning = skeletonize(binary_image // 255).astype(np.uint8) * 255
-    
+
+    # Cek validitas gambar sebelum resize
+    if thinning is None or thinning.size == 0:
+        st.error("Error: Gambar tidak valid setelah preprocessing.")
+        return None, None
+
+    if expected_shape is None or len(expected_shape) < 2:
+        st.error("Error: expected_shape model tidak valid.")
+        return None, None
+
     # Resize sesuai model
-    final_image = cv2.resize(thinning, expected_shape[:2], interpolation=cv2.INTER_AREA) / 255.0
-    
+    final_image = cv2.resize(thinning, (expected_shape[0], expected_shape[1]), interpolation=cv2.INTER_AREA) / 255.0
+
     # Pastikan format grayscale sesuai
-    final_image = np.expand_dims(final_image, axis=-1) if len(expected_shape) == 3 and expected_shape[-1] == 1 else final_image
-    
+    if len(expected_shape) == 3 and expected_shape[-1] == 1:
+        final_image = np.expand_dims(final_image, axis=-1)
+
     return np.expand_dims(final_image, axis=0), thinning
 
 def extract_hog_features(image):
     """Ekstraksi fitur HOG yang sesuai dengan model."""
     gray_image_resized = resize(image, (64, 64), anti_aliasing=True, preserve_range=True)
-    
+
     hog_features, hog_image = hog(gray_image_resized, orientations=9, pixels_per_cell=(8, 8), 
                                   cells_per_block=(2, 2), block_norm='L2-Hys', visualize=True)
-    
+
     # Normalisasi fitur
     hog_features /= (np.linalg.norm(hog_features) + 1e-6)
     hog_image = exposure.rescale_intensity(hog_image, in_range=(0, 10))
-    
+
     return np.expand_dims(hog_features, axis=0), hog_image
 
 def generate_hangeul_image(text):
@@ -75,7 +85,7 @@ def generate_hangeul_image(text):
 def main():
     st.title("📝 Pengenalan Tulisan Hangeul")
     st.write("Tuliskan huruf Hangeul di canvas dan lihat prediksi model!")
-    
+
     canvas_result = stc.st_canvas(
         fill_color="rgba(255, 255, 255, 0)",
         stroke_width=10,
@@ -86,24 +96,27 @@ def main():
         drawing_mode="freedraw",
         key="canvas"
     )
-    
+
     if st.button("Prediksi"):
         if canvas_result.image_data is not None:
             image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
             processed_image, thinning_image = preprocess_image(image)
             
-            prediction = model.predict(processed_image)
+            if processed_image is None:
+                return
             
+            prediction = model.predict(processed_image)
+
             # Ambil 3 prediksi teratas
             top_3_indices = np.argsort(prediction[0])[-3:][::-1]
             top_3_values = prediction[0][top_3_indices] * 100
-            
+
             st.write("🔍 **Top 3 Prediksi Model:**")
             for i in range(3):
                 predicted_hangeul = hangeul_chars[top_3_indices[i]]
                 confidence = top_3_values[i]
                 st.write(f"{i+1}. {predicted_hangeul} ({confidence:.2f}%)")
-            
+
             predicted_hangeul = hangeul_chars[top_3_indices[0]]
             hangeul_image = generate_hangeul_image(predicted_hangeul)
             st.image(hangeul_image, caption=f"🖌 Huruf Hangeul: {predicted_hangeul}", use_container_width=False)
