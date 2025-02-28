@@ -79,7 +79,10 @@ if st.button("🔍 Prediksi Huruf"):
                         pred = model.predict(processed_image)
                     
                     result = hangeul_chars[np.argmax(pred)]
-                    st.success(f"✏️ Prediksi Huruf: **{result}**")
+                    if result not in hangeul_chars:
+                        st.error("❌ Bukan alfabet Hangeul! Silakan coba lagi.")
+                    else:
+                        st.success(f"✏️ Prediksi Huruf: **{result}**")
                     
                     # Tampilkan hasil preprocessing
                     st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
