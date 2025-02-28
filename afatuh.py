@@ -40,7 +40,7 @@ def preprocess_image(image):
     if expected_shape[-1] == 3:
         final_image = np.stack((final_image,) * 3, axis=-1)
     
-    return np.expand_dims(final_image, axis=0), binary_image
+    return np.expand_dims(final_image.astype(np.float32), axis=0), binary_image
 
 def extract_hog_features(image):
     """Ekstraksi fitur HOG yang sesuai dengan model."""
@@ -55,7 +55,7 @@ def extract_hog_features(image):
     hog_features /= (np.linalg.norm(hog_features) + 1e-6)
     hog_image = exposure.rescale_intensity(hog_image, in_range=(0, 10))
     
-    return np.expand_dims(hog_features, axis=0), hog_image
+    return np.expand_dims(hog_features.astype(np.float32), axis=0), hog_image
 
 def generate_hangeul_image(text):
     """Menghasilkan gambar dari huruf Hangeul yang dikenali."""
@@ -88,8 +88,10 @@ def main():
             image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
             processed_image, binary_image = preprocess_image(image)
             
+            st.write("Processed image shape:", processed_image.shape)
             if num_inputs == 2:
                 hog_features, hog_visual = extract_hog_features(binary_image)
+                st.write("HOG features shape:", hog_features.shape)
                 prediction = model.predict([processed_image, hog_features])
             else:
                 prediction = model.predict(processed_image)
