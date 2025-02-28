@@ -45,6 +45,11 @@ def extract_hog_features(image):
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     return np.array(features).reshape(1, -1)
 
+def is_valid_drawing(image):
+    non_zero_pixels = np.count_nonzero(image)
+    total_pixels = image.size
+    return (non_zero_pixels / total_pixels) > 0.05  # Minimal 5% pixel harus terisi
+
 # UI Header
 st.title("📝 Pengenalan Huruf Hangeul")
 st.markdown("<h4 style='text-align: center;'>Gambar huruf di kanvas untuk prediksi.</h4>", unsafe_allow_html=True)
@@ -65,28 +70,31 @@ canvas_result = stc.st_canvas(
 if st.button("🔍 Prediksi Huruf"):
     if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
-        processed_image = preprocess_image(image)
-        hog_features = extract_hog_features(np.array(image))
-        model = load_model()
-        
-        if model is not None:
-            with st.spinner("🔄 Memprediksi huruf..."):
-                try:
-                    input_shapes = model.input_shape if isinstance(model.input_shape, list) else [model.input_shape]
-                    if len(input_shapes) == 2:
-                        pred = model.predict([processed_image, hog_features])
-                    else:
-                        pred = model.predict(processed_image)
-                    
-                    confidence = np.max(pred)
-                    result = hangeul_chars[np.argmax(pred)]
-                    
-                    if confidence < 0.7:
-                        st.error("❌ Tidak yakin ini huruf Hangeul. Silakan coba lagi.")
-                    else:
-                        st.success(f"✏️ Prediksi Huruf: **{result}**")
-                    
-                    # Tampilkan hasil preprocessing
-                    st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
-                except Exception as e:
-                    st.error(f"❌ Error saat memprediksi: {e}")
+        if not is_valid_drawing(np.array(image.convert("L"))):
+            st.error("❌ Gambar terlalu kosong atau tidak jelas. Silakan coba lagi.")
+        else:
+            processed_image = preprocess_image(image)
+            hog_features = extract_hog_features(np.array(image))
+            model = load_model()
+            
+            if model is not None:
+                with st.spinner("🔄 Memprediksi huruf..."):
+                    try:
+                        input_shapes = model.input_shape if isinstance(model.input_shape, list) else [model.input_shape]
+                        if len(input_shapes) == 2:
+                            pred = model.predict([processed_image, hog_features])
+                        else:
+                            pred = model.predict(processed_image)
+                        
+                        confidence = np.max(pred)
+                        result = hangeul_chars[np.argmax(pred)]
+                        
+                        if confidence < 0.7:
+                            st.error("❌ Prediksi tidak cukup yakin bahwa ini huruf Hangeul. Silakan coba lagi.")
+                        else:
+                            st.success(f"✏️ Prediksi Huruf: **{result}**")
+                        
+                        # Tampilkan hasil preprocessing
+                        st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
+                    except Exception as e:
+                        st.error(f"❌ Error saat memprediksi: {e}")
