@@ -31,13 +31,16 @@ def preprocess_image(image):
     if np.mean(image) > 127:
         image = cv2.bitwise_not(image)
     
-    # Adaptive thresholding
+    # Resize gambar ke ukuran model dengan anti-aliasing
+    image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
+    
+    # Adaptive thresholding untuk meningkatkan kontras tulisan
     binary_image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     
-    # Skeletonization
+    # Skeletonization untuk mempertahankan struktur utama tulisan
     thinning = skeletonize(binary_image // 255).astype(np.uint8) * 255
     
-    # Resize sesuai model
+    # Resize ulang ke ukuran input model
     final_image = cv2.resize(thinning, expected_shape[:2], interpolation=cv2.INTER_AREA) / 255.0
     
     # Pastikan channel sesuai dengan model
