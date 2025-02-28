@@ -5,7 +5,6 @@ import cv2
 from skimage.feature import hog
 from skimage.color import rgb2gray
 from skimage.transform import resize
-from skimage import exposure
 from PIL import Image
 import streamlit_drawable_canvas as stc
 
@@ -31,7 +30,7 @@ def preprocess_image(image):
         image = cv2.bitwise_not(image)
     
     # Binarisasi adaptif untuk meningkatkan kejelasan tulisan
-    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
     # Resize ke ukuran yang sesuai untuk model
     image = cv2.resize(image, (28, 28), interpolation=cv2.INTER_AREA)
@@ -41,19 +40,19 @@ def preprocess_image(image):
     img_tensor = np.expand_dims(img_tensor, axis=(0, -1))
     img_tensor = np.repeat(img_tensor, 3, axis=-1)  # Pastikan 3 channel jika diperlukan
     
-    return img_tensor, image
+    return img_tensor
 
 def extract_hog_features(image):
     gray = rgb2gray(image) if image.ndim == 3 else image
-    gray_resized = resize(gray, (64, 64), anti_aliasing=True, preserve_range=True)
-    features, hog_image = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True, feature_vector=True)
+    gray_resized = resize(gray, (64, 64), anti_aliasing=True)
+    features, _ = hog(gray_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
     
     # Normalisasi fitur
     features = features / (np.linalg.norm(features) + 1e-6)
     target_hog_size = 144
     features = np.pad(features, (0, max(0, target_hog_size - len(features))))[:target_hog_size]
     
-    return np.array(features).reshape(1, -1), exposure.rescale_intensity(hog_image, in_range=(0, 1))
+    return np.array(features).reshape(1, -1)
 
 st.title("📝 Pengenalan Tulisan Hangeul")
 st.write("Gambar huruf di kanvas untuk prediksi.")
@@ -72,8 +71,8 @@ canvas_result = stc.st_canvas(
 if st.button("Prediksi"):
     if canvas_result.image_data is not None:
         image = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
-        processed_image, binarized_image = preprocess_image(image)
-        hog_features, hog_visual = extract_hog_features(np.array(binarized_image))
+        processed_image = preprocess_image(image)
+        hog_features = extract_hog_features(np.array(image))
         model = load_model()
         
         if model is not None:
@@ -88,7 +87,6 @@ if st.button("Prediksi"):
                 st.write(f"✏️ Prediksi Huruf: **{result}**")
                 
                 # Tampilkan hasil preprocessing
-                st.image(binarized_image, caption="📊 Gambar Setelah Binarisasi", use_column_width=True, clamp=True, channels="GRAY")
-                st.image(hog_visual, caption="📊 Ekstraksi HOG", use_column_width=True, clamp=True, channels="GRAY")
+                st.image(processed_image[0], caption="📊 Gambar Setelah Preprocessing", use_column_width=True, clamp=True, channels="GRAY")
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
